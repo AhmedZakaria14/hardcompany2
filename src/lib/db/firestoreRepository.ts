@@ -225,9 +225,40 @@ export const FirestoreLeadsRepository = {
   async getAll(): Promise<LeadRecord[]> {
     try {
       const colRef = collection(db, 'leads');
-      const snap = await getDocs(colRef);
+      const q = query(colRef, orderBy('createdAt', 'desc'));
+      const snap = await getDocs(q).catch(() => getDocs(colRef));
       if (!snap.empty) {
-        return snap.docs.map((d) => d.data() as LeadRecord);
+        return snap.docs.map((d) => {
+          const data = d.data();
+          const createdIso =
+            data.createdAt ||
+            (data.submittedAt?.toDate?.()
+              ? data.submittedAt.toDate().toISOString()
+              : new Date().toISOString());
+          return {
+            id: d.id,
+            name: data.fullName || data.name || 'Valued Client',
+            email: data.email || '',
+            phone: data.phone || '',
+            property_id: data.entityId || data.property_id || undefined,
+            property_title: data.entityTitle || data.property_title || undefined,
+            inquiry_type: (data.formType || data.inquiry_type || 'general_contact') as any,
+            recipient_email: data.recipient_email || 'info@hardgp.com',
+            message: data.message || '',
+            status: data.status || data.processingStatus || 'new',
+            crm_sync_status: data.crmSynced ? 'synced' : 'pending',
+            crm_reference_id: data.trackingCode || `HARD-${d.id.substring(0, 5)}`,
+            source: data.sector ? `HARD ${data.sector.toUpperCase()}` : (data.source || 'Website Form'),
+            metadata: {
+              trackingCode: data.trackingCode,
+              sector: data.sector,
+              formType: data.formType,
+              ...data.details,
+              ...data.metadata,
+            },
+            created_at: createdIso,
+          } as LeadRecord;
+        });
       }
     } catch (e) {
       console.warn('FirestoreLeadsRepository.getAll error:', e);
@@ -314,7 +345,7 @@ export const FirestoreJoinListRepository = {
     } catch (e) {
       console.warn('FirestoreJoinListRepository.getAll error:', e);
     }
-    return mockSubscribers;
+    return [];
   },
 
   async create(data: { email: string; source?: string; notes?: string }): Promise<JoinListSubscriber> {

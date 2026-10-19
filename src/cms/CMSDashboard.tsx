@@ -33,7 +33,9 @@ import {
   fetchCmsDraftsCount,
   fetchRevisionsCount,
   subscribeAppointmentsMetrics,
+  subscribeSubscribersMetrics,
 } from '../lib/cms/dashboardMetricsService';
+import { subscribeToLeads } from '../lib/leads/leadService';
 
 interface CMSDashboardProps {
   properties: Property[];
@@ -88,11 +90,28 @@ export const CMSDashboard: React.FC<CMSDashboardProps> = ({
   const [draftsCount, setDraftsCount] = useState<number>(0);
   const [revisionsCount, setRevisionsCount] = useState<number>(0);
   const [appointments, setAppointments] = useState<FirestoreAppointment[]>([]);
+  const [liveLeads, setLiveLeads] = useState<LeadRecord[]>(leads);
+  const [liveSubscribers, setLiveSubscribers] = useState<JoinListSubscriber[]>(subscribers);
   const [isLoadingMetrics, setIsLoadingMetrics] = useState<boolean>(true);
 
-  // Fetch real-time DB counts for drafts, revisions, and appointments
+  // Sync with prop changes if passed down from DataContext
+  useEffect(() => {
+    if (leads && leads.length > 0 && liveLeads.length === 0) {
+      setLiveLeads(leads);
+    }
+  }, [leads]);
+
+  useEffect(() => {
+    if (subscribers && subscribers.length > 0 && liveSubscribers.length === 0) {
+      setLiveSubscribers(subscribers);
+    }
+  }, [subscribers]);
+
+  // Fetch real-time DB counts and listen to live leads, appointments, and subscribers
   useEffect(() => {
     let unsubscribeAppointments: (() => void) | null = null;
+    let unsubscribeLeads: (() => void) | null = null;
+    let unsubscribeSubscribers: (() => void) | null = null;
 
     async function loadDbMetrics() {
       setIsLoadingMetrics(true);
@@ -112,24 +131,81 @@ export const CMSDashboard: React.FC<CMSDashboardProps> = ({
 
     loadDbMetrics();
 
-    // Subscribe to live appointment status updates
-    unsubscribeAppointments = subscribeAppointmentsMetrics((appts) => {
-      setAppointments(appts);
-    });
+    // 1. Subscribe to live Firestore customer leads in real-time
+    try {
+      unsubscribeLeads = subscribeToLeads(
+        (items) => {
+          if (Array.isArray(items)) {
+            const normalized: LeadRecord[] = items.map((fl) => ({
+              id: fl.id,
+              name: fl.fullName || fl.name || 'Valued Client',
+              email: fl.email || '',
+              phone: fl.phone || '',
+              property_id: fl.entityId || undefined,
+              property_title: fl.entityTitle || undefined,
+              inquiry_type: (fl.formType as any) || 'general_contact',
+              message: fl.message || '',
+              status: fl.status || 'new',
+              crm_sync_status: fl.crmSynced ? 'synced' : 'pending',
+              crm_reference_id: fl.trackingCode || `HARD-${fl.id.substring(0, 5)}`,
+              source: fl.sector ? `HARD ${fl.sector.toUpperCase()}` : 'Website Lead',
+              metadata: {
+                trackingCode: fl.trackingCode,
+                sector: fl.sector,
+                formType: fl.formType,
+                ...fl.details,
+              },
+              created_at: fl.createdAt || new Date().toISOString(),
+            }));
+            setLiveLeads(normalized);
+          }
+        },
+        (err) => {
+          console.warn('Dashboard live leads subscription notice:', err);
+        }
+      );
+    } catch (leadsErr) {
+      console.warn('Failed setting up live leads listener:', leadsErr);
+    }
+
+    // 2. Subscribe to live appointment status updates
+    try {
+      unsubscribeAppointments = subscribeAppointmentsMetrics((appts) => {
+        setAppointments(appts || []);
+      });
+    } catch (apptsErr) {
+      console.warn('Failed setting up appointments listener:', apptsErr);
+    }
+
+    // 3. Subscribe to live subscribers
+    try {
+      unsubscribeSubscribers = subscribeSubscribersMetrics((subs) => {
+        if (Array.isArray(subs)) {
+          setLiveSubscribers(subs);
+        }
+      });
+    } catch (subsErr) {
+      console.warn('Failed setting up subscribers listener:', subsErr);
+    }
 
     return () => {
+      if (unsubscribeLeads) unsubscribeLeads();
       if (unsubscribeAppointments) unsubscribeAppointments();
+      if (unsubscribeSubscribers) unsubscribeSubscribers();
     };
   }, []);
 
-  // Compute aggregated database metrics
+  const effectiveLeads = liveLeads;
+  const effectiveSubscribers = liveSubscribers;
+
+  // Compute aggregated database metrics using genuine live database records
   const metrics = computeDashboardMetrics({
     properties,
     projects,
     blogPosts,
     testimonials,
-    subscribers,
-    leads,
+    subscribers: effectiveSubscribers,
+    leads: effectiveLeads,
     appointments,
     draftsCount,
     revisionsCount,
@@ -137,7 +213,7 @@ export const CMSDashboard: React.FC<CMSDashboardProps> = ({
   });
 
   const recentProperties = properties.slice(0, 4);
-  const recentLeads = leads.slice(0, 4);
+  const recentLeads = effectiveLeads.slice(0, 5);
 
   return (
     <div className="space-y-8 animate-in fade-in">
@@ -522,24 +598,61 @@ export const CMSDashboard: React.FC<CMSDashboardProps> = ({
                   <div
                     key={lead.id}
                     onClick={onNavigateToLeads}
-                    className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-indigo-300 transition-colors flex items-center justify-between gap-3 cursor-pointer"
+                    className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-indigo-300 hover:bg-slate-50/80 transition-all flex items-center justify-between gap-3 cursor-pointer group"
                   >
                     <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-900">{lead.name}</span>
-                        <span className="text-[10px] font-medium text-slate-500">({lead.phone})</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                          {lead.name}
+                        </span>
+                        {lead.phone && (
+                          <span className="text-[10px] font-medium text-slate-500 dir-ltr">
+                            {lead.phone}
+                          </span>
+                        )}
+                        {lead.crm_reference_id && (
+                          <span className="px-2 py-0.5 rounded-md bg-slate-200/80 text-slate-700 text-[10px] font-mono font-bold">
+                            {lead.crm_reference_id}
+                          </span>
+                        )}
+                        {lead.source && (
+                          <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-semibold border border-indigo-100">
+                            {lead.source}
+                          </span>
+                        )}
                       </div>
-                      <p className="text-[11px] text-slate-600 truncate">{(lead as any).interestNote || lead.message || lead.email}</p>
+                      <p className="text-[11px] text-slate-600 truncate max-w-md">
+                        {lead.message || lead.email || (isAr ? 'طلب استفسار جديد' : 'New client inquiry')}
+                      </p>
+                      {lead.created_at && (
+                        <div className="text-[10px] text-slate-400">
+                          {new Date(lead.created_at).toLocaleDateString(isAr ? 'ar-SA' : 'en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     <span className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold ${
                       lead.status === 'new'
-                        ? 'bg-amber-100 text-amber-800'
+                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
                         : lead.status === 'contacted'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-emerald-100 text-emerald-800'
+                        ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                        : lead.status === 'qualified'
+                        ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                        : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                     }`}>
-                      {lead.status || 'new'}
+                      {lead.status === 'new'
+                        ? (isAr ? 'جديد' : 'New')
+                        : lead.status === 'contacted'
+                        ? (isAr ? 'تم التواصل' : 'Contacted')
+                        : lead.status === 'qualified'
+                        ? (isAr ? 'مؤهل' : 'Qualified')
+                        : (isAr ? 'مكتمل' : 'Closed')}
                     </span>
                   </div>
                 ))}

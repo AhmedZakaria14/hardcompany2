@@ -7,6 +7,7 @@ import {
   deleteDoc,
   onSnapshot,
   Unsubscribe,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import {
@@ -378,7 +379,7 @@ export function subscribeHVACLeads(
     },
     (err) => {
       console.warn('[subscribeHVACLeads] Error reading HVAC leads:', err);
-      callback(initialSampleLeads);
+      callback([]);
     }
   );
 }
@@ -386,6 +387,38 @@ export function subscribeHVACLeads(
 export async function saveHVACLeadDoc(leadData: HVACLead): Promise<void> {
   const docRef = doc(db, 'hvac_leads', leadData.id);
   await setDoc(docRef, withServerTimestamps(sanitizePayload(leadData)));
+
+  // Also sync to global leads collection for executive CMS dashboard
+  try {
+    const globalLeadRef = doc(db, 'leads', leadData.id);
+    await setDoc(
+      globalLeadRef,
+      {
+        id: leadData.id,
+        trackingCode: leadData.referenceNumber,
+        formType: 'hvac_service',
+        sector: 'hvac',
+        fullName: leadData.clientName,
+        name: leadData.clientName,
+        email: leadData.email || '',
+        phone: leadData.phoneNumber || '',
+        message: leadData.notes || '',
+        status: leadData.status || 'new',
+        details: {
+          city: leadData.city,
+          service: leadData.service,
+          isUrgent: leadData.isUrgent,
+          preferredDate: leadData.preferredDate,
+          areaSqM: leadData.areaSqM,
+        },
+        createdAt: leadData.createdAt || new Date().toISOString(),
+        submittedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn('[saveHVACLeadDoc] Global leads mirror notice:', err);
+  }
 }
 
 export async function updateHVACLeadStatusDoc(
@@ -394,9 +427,26 @@ export async function updateHVACLeadStatusDoc(
 ): Promise<void> {
   const docRef = doc(db, 'hvac_leads', id);
   await updateDoc(docRef, withServerTimestamps({ status }));
+
+  try {
+    const globalLeadRef = doc(db, 'leads', id);
+    await updateDoc(globalLeadRef, {
+      status,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    // Non-blocking
+  }
 }
 
 export async function deleteHVACLeadDoc(id: string): Promise<void> {
   const docRef = doc(db, 'hvac_leads', id);
   await deleteDoc(docRef);
+
+  try {
+    const globalLeadRef = doc(db, 'leads', id);
+    await deleteDoc(globalLeadRef);
+  } catch (e) {
+    // Non-blocking
+  }
 }

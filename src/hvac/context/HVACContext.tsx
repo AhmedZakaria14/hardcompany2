@@ -147,11 +147,11 @@ export function HVACProvider({
   };
 
   // Leads state with Firestore sync
-  const [leads, setLeads] = useState<HVACLead[]>(initialSampleLeads);
+  const [leads, setLeads] = useState<HVACLead[]>([]);
 
   useEffect(() => {
     const unsub = subscribeHVACLeads((list) => {
-      if (list && list.length > 0) setLeads(list);
+      setLeads(list || []);
     });
     return () => unsub();
   }, []);
@@ -398,7 +398,7 @@ export function HVACProvider({
     setServices(initialServices);
     setGalleryItems(initialGallery);
     setTestimonials(initialTestimonials);
-    setLeads(initialSampleLeads);
+    setLeads([]);
     setServiceAreas(DEFAULT_HVAC_CITIES);
     setHeroContent(DEFAULT_HVAC_HERO);
     setOperatingHours(DEFAULT_HVAC_HOURS_CONTACT);

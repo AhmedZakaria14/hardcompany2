@@ -107,18 +107,40 @@ export async function fetchRevisionsCount(): Promise<number> {
 }
 
 /**
- * Subscribe to real-time appointments summary
+ * Subscribe to real-time appointments summary from Firestore appointment_requests
  */
 export function subscribeAppointmentsMetrics(
   onUpdate: (appointments: FirestoreAppointment[]) => void
 ): () => void {
   try {
-    const q = query(collection(db, 'appointments'));
+    const q = query(collection(db, 'appointment_requests'));
     return onSnapshot(q, (snapshot) => {
-      const appointments = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as FirestoreAppointment[];
+      const appointments = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          trackingCode: data.trackingCode || `APPT-${doc.id.slice(0, 6)}`,
+          appointmentType: data.appointmentType || 'property_viewing',
+          sector: data.sector || 'realestate',
+          preferredDate: data.preferredDate || new Date().toISOString().split('T')[0],
+          preferredTimeWindow: data.preferredTimeWindow || '10:00 - 12:00',
+          localTimezone: data.localTimezone || 'Asia/Riyadh',
+          isConfirmed: Boolean(data.isConfirmed || data.status === 'confirmed'),
+          confirmedDate: data.confirmedDate,
+          confirmedTimeWindow: data.confirmedTimeWindow,
+          referenceType: data.referenceType || 'property',
+          referenceId: data.referenceId || null,
+          referenceTitle: data.referenceTitle || null,
+          customerName: data.customerName || data.clientName || 'Client',
+          customerEmail: data.customerEmail || data.clientEmail || '',
+          customerPhone: data.customerPhone || data.clientPhone || '',
+          customerNotes: data.customerNotes || data.notes || '',
+          status: (data.status || 'pending') as any,
+          auditTrail: data.auditTrail || [],
+          createdAt: data.createdAt || new Date().toISOString(),
+          updatedAt: data.updatedAt || new Date().toISOString(),
+        } as FirestoreAppointment;
+      });
       onUpdate(appointments);
     }, (err) => {
       console.warn('Appointments listener fallback:', err);
@@ -126,6 +148,31 @@ export function subscribeAppointmentsMetrics(
     });
   } catch (err) {
     console.warn('Failed setting up appointments listener:', err);
+    onUpdate([]);
+    return () => {};
+  }
+}
+
+/**
+ * Subscribe to real-time subscribers from Firestore
+ */
+export function subscribeSubscribersMetrics(
+  onUpdate: (subscribers: JoinListSubscriber[]) => void
+): () => void {
+  try {
+    const q = query(collection(db, 'subscribers'));
+    return onSnapshot(q, (snapshot) => {
+      const subscribers = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as JoinListSubscriber[];
+      onUpdate(subscribers);
+    }, (err) => {
+      console.warn('Subscribers listener fallback:', err);
+      onUpdate([]);
+    });
+  } catch (err) {
+    console.warn('Failed setting up subscribers listener:', err);
     onUpdate([]);
     return () => {};
   }

@@ -10,6 +10,7 @@ import {
   query,
   orderBy,
   Unsubscribe,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import {
@@ -394,6 +395,40 @@ export async function saveConstructionLead(
 ): Promise<void> {
   const docRef = doc(db, 'construction_leads', leadData.id);
   await setDoc(docRef, withServerTimestamps(sanitizePayload(leadData)));
+
+  // Also sync to global leads collection for executive CMS dashboard
+  try {
+    const globalLeadRef = doc(db, 'leads', leadData.id);
+    await setDoc(
+      globalLeadRef,
+      {
+        id: leadData.id,
+        trackingCode: leadData.referenceNumber,
+        formType: 'construction_quote',
+        sector: 'construction',
+        fullName: leadData.clientName,
+        name: leadData.clientName,
+        email: leadData.email || '',
+        phone: leadData.phoneNumber || '',
+        message: leadData.notes || '',
+        status: leadData.status || 'new',
+        details: {
+          city: leadData.city,
+          district: leadData.district,
+          projectType: leadData.projectType,
+          builtUpArea: leadData.builtUpArea,
+          budgetRangeSAR: leadData.budgetRangeSAR,
+          timeline: leadData.timeline,
+          estimatedValueSAR: leadData.estimatedValueSAR,
+        },
+        createdAt: leadData.createdAt || new Date().toISOString(),
+        submittedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn('[saveConstructionLead] Global leads mirror notice:', err);
+  }
 }
 
 /**
@@ -410,6 +445,16 @@ export async function updateConstructionLeadStatusInDb(
     updatePayload.adminNotes = adminNotes;
   }
   await updateDoc(docRef, withServerTimestamps(updatePayload));
+
+  try {
+    const globalLeadRef = doc(db, 'leads', id);
+    await updateDoc(globalLeadRef, {
+      status,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    // Non-blocking
+  }
 }
 
 /**
@@ -418,4 +463,11 @@ export async function updateConstructionLeadStatusInDb(
 export async function deleteConstructionLeadInDb(id: string): Promise<void> {
   const docRef = doc(db, 'construction_leads', id);
   await deleteDoc(docRef);
+
+  try {
+    const globalLeadRef = doc(db, 'leads', id);
+    await deleteDoc(globalLeadRef);
+  } catch (e) {
+    // Non-blocking
+  }
 }

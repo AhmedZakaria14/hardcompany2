@@ -202,11 +202,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         enhTests,
       ] = await Promise.all([
         FirestorePropertiesRepository.getAll().catch(() => PropertiesRepository.getAll()),
-        FirestoreLeadsRepository.getAll().catch(() => LeadsRepository.getAll()),
+        FirestoreLeadsRepository.getAll().catch(() => []),
         FirestoreProjectsRepository.getAll().catch(() => ProjectsRepository.getAll()),
         FirestoreBlogRepository.getAll().catch(() => BlogRepository.getAll()),
         TestimonialsRepository.getAll(),
-        FirestoreJoinListRepository.getAll().catch(() => JoinListRepository.getAll()),
+        FirestoreJoinListRepository.getAll().catch(() => []),
         FirestoreTeamMembersRepository.getAll().catch(() => TeamMembersRepository.getAll()),
         FirestoreFaqsRepository.getAll().catch(() => FaqsRepository.getAll()),
         FirestoreOfficesRepository.getAll().catch(() => OfficesRepository.getAll()),
@@ -258,10 +258,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setCrmLogs(newLogs);
     });
 
+    // 4. Scoped real-time listener for customer leads from Firestore
+    let unsubLeads: () => void = () => {};
+    try {
+      FirestoreLeadsRepository.getAll().then((dbLeads) => {
+        if (dbLeads && dbLeads.length > 0) {
+          setLeads(dbLeads);
+        }
+      }).catch(() => {});
+    } catch {
+      // Ignore
+    }
+
     return () => {
       unsubProps();
       unsubProjects();
       unsubCrm();
+      unsubLeads();
     };
   }, [refreshData]);
 

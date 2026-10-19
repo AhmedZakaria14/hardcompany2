@@ -227,13 +227,11 @@ export const ConstructionProvider: React.FC<{
   };
 
   // Leads State with Firestore sync
-  const [leads, setLeads] = useState<ConstructionQuoteLead[]>(INITIAL_LEADS);
+  const [leads, setLeads] = useState<ConstructionQuoteLead[]>([]);
 
   useEffect(() => {
     const unsub = subscribeConstructionLeads((list) => {
-      if (list && list.length > 0) {
-        setLeads(list);
-      }
+      setLeads(list || []);
     });
     return () => unsub();
   }, []);
