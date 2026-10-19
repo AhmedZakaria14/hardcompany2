@@ -1,0 +1,364 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==========================================
+    // AUTHENTICATION & ROLE HELPER FUNCTIONS
+    // ==========================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSameUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function getUserProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function getAdminProfile() {
+      return get(/databases/$(database)/documents/admin_profiles/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.token.admin == true ||
+        request.auth.token.email in ['azeco77@gmail.com', 'admin@hard.sa'] ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserProfile().role == 'superadmin') ||
+        (exists(/databases/$(database)/documents/admin_profiles/$(request.auth.uid)) && getAdminProfile().role == 'superadmin')
+      );
+    }
+
+    function isPublisher() {
+      return isSignedIn() && (
+        isSuperAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserProfile().role in ['publisher', 'superadmin', 'admin']) ||
+        (exists(/databases/$(database)/documents/admin_profiles/$(request.auth.uid)) && getAdminProfile().role in ['publisher', 'superadmin', 'admin'])
+      );
+    }
+
+    function isEditor() {
+      return isSignedIn() && (
+        isPublisher() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserProfile().role in ['editor', 'publisher', 'superadmin', 'admin']) ||
+        (exists(/databases/$(database)/documents/admin_profiles/$(request.auth.uid)) && getAdminProfile().role in ['editor', 'publisher', 'superadmin', 'admin'])
+      );
+    }
+
+    function isLeadManager() {
+      return isSignedIn() && (
+        isPublisher() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserProfile().role in ['lead_manager', 'publisher', 'superadmin', 'admin']) ||
+        (exists(/databases/$(database)/documents/admin_profiles/$(request.auth.uid)) && getAdminProfile().role in ['lead_manager', 'publisher', 'superadmin', 'admin'])
+      );
+    }
+
+    function hasSectorScope(sector) {
+      return isSuperAdmin() || sector == null || sector == '' || sector == 'portal' || sector == 'global' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && ('portal' in getUserProfile().allowedSectors || sector in getUserProfile().allowedSectors)) ||
+        (exists(/databases/$(database)/documents/admin_profiles/$(request.auth.uid)) && ('portal' in getAdminProfile().allowedSectors || sector in getAdminProfile().allowedSectors));
+    }
+
+    // Prevents non-superadmins from modifying their own or others' roles/allowedSectors
+    function isRoleAndSectorUnchanged() {
+      return request.resource.data.role == resource.data.role &&
+             request.resource.data.allowedSectors == resource.data.allowedSectors;
+    }
+
+    // ==========================================
+    // 1. SYSTEM & CONNECTION CHECKS
+    // ==========================================
+
+    match /_connection_check/{checkId} {
+      allow read: if true;
+    }
+
+    // ==========================================
+    // 2. PUBLIC CONTENT COLLECTIONS
+    // ==========================================
+
+    match /site_settings/{settingId} {
+      allow read: if true;
+      allow write: if isSuperAdmin() || isEditor();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isSuperAdmin() || isEditor();
+    }
+
+    match /navigation/{navId} {
+      allow read: if true;
+      allow write: if isPublisher() && hasSectorScope(resource.data.sector);
+    }
+
+    match /navigations/{navId} {
+      allow read: if true;
+      allow write: if isPublisher() || isEditor();
+    }
+
+    match /redirects/{redirectId} {
+      allow read: if true;
+      allow write: if isPublisher() || isEditor();
+    }
+
+    match /sectors/{sectorId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    match /pages/{pageId} {
+      allow read: if true;
+      allow write: if isEditor() && hasSectorScope(resource.data.sector);
+    }
+
+    match /cms_pages/{pageId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /sections/{sectionId} {
+      allow read: if true;
+      allow write: if isEditor() && hasSectorScope(resource.data.sector);
+    }
+
+    match /site_content/{sectionId} {
+      allow read: if true;
+      allow write: if isEditor() && hasSectorScope(resource.data.sector);
+    }
+
+    match /properties/{propertyId} {
+      allow read: if true;
+      allow create, update: if isEditor();
+      allow delete: if isPublisher() || isSuperAdmin();
+    }
+
+    match /projects/{projectId} {
+      allow read: if true;
+      allow create, update: if isEditor();
+      allow delete: if isPublisher() || isSuperAdmin();
+    }
+
+    match /construction_projects/{projectId} {
+      allow read: if true;
+      allow create, update: if isEditor();
+      allow delete: if isPublisher() || isSuperAdmin();
+    }
+
+    match /construction_content/{sectionKey} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /services/{serviceId} {
+      allow read: if true;
+      allow create, update: if isEditor();
+      allow delete: if isPublisher() || isSuperAdmin();
+    }
+
+    match /hvac_services/{serviceId} {
+      allow read: if true;
+      allow create, update: if isEditor();
+      allow delete: if isPublisher() || isSuperAdmin();
+    }
+
+    match /hvac_content/{sectionKey} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /hvac_gallery/{itemId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /hvac_testimonials/{itemId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /articles/{articleId} {
+      allow read: if true;
+      allow create, update: if isEditor();
+      allow delete: if isPublisher() || isSuperAdmin();
+    }
+
+    match /blog_posts/{postId} {
+      allow read: if true;
+      allow create, update: if isEditor();
+      allow delete: if isPublisher() || isSuperAdmin();
+    }
+
+    match /blog_categories/{categoryId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /blog_authors/{authorId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /team_members/{memberId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /testimonials/{testimonialId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /faqs/{faqId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /offices/{officeId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /certifications/{certId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /statistics/{statId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /partners/{partnerId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /calculator_configs/{configId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /forms/{formId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /cms_drafts/{draftId} {
+      allow read, write: if isEditor();
+    }
+
+    // ==========================================
+    // 3. PRIVATE OPERATIONAL DATA (LEADS, APPOINTMENTS, LOGS)
+    // ==========================================
+
+    match /leads/{leadId} {
+      allow create: if true;
+      allow read: if isLeadManager() && hasSectorScope(resource.data.sector);
+      allow update: if (isLeadManager() && hasSectorScope(resource.data.sector)) ||
+                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notificationStatus', 'notificationProvider', 'notificationLastAttemptAt', 'notificationError', 'updatedAt']));
+      allow delete: if isSuperAdmin();
+    }
+
+    match /construction_leads/{leadId} {
+      allow create: if true;
+      allow read, update: if isLeadManager();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /hvac_leads/{leadId} {
+      allow create: if true;
+      allow read, update: if isLeadManager();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /appointment_requests/{appointmentId} {
+      allow create: if true;
+      allow read: if isLeadManager() && hasSectorScope(resource.data.sector);
+      allow update: if isLeadManager() && hasSectorScope(resource.data.sector);
+      allow delete: if isSuperAdmin();
+    }
+
+    match /appointments/{appointmentId} {
+      allow create: if true;
+      allow read, update: if isLeadManager();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /form_attachments/{attachmentId} {
+      // Public users can upload attachments during form submission
+      allow create: if true;
+      // ONLY authorized lead managers can read or download private form attachments
+      allow read: if isLeadManager();
+      allow update: if isLeadManager() || (resource.data.status == 'pending_submission');
+      allow delete: if isLeadManager();
+    }
+
+    match /subscribers/{subscriberId} {
+      allow create: if true;
+      allow read, update: if isLeadManager();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /notification_logs/{logId} {
+      allow create, update: if true;
+      allow read: if isLeadManager();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /system_production_logs/{logId} {
+      allow create: if true;
+      allow read: if isSuperAdmin();
+      allow update, delete: if false; // Append-only system logs
+    }
+
+    // ==========================================
+    // 4. ADMIN USER & GOVERNANCE COLLECTIONS
+    // ==========================================
+
+    match /users/{userId} {
+      allow read: if isSameUser(userId) || isSuperAdmin();
+      allow create: if isSuperAdmin() || (isSameUser(userId) && request.resource.data.role in ['admin', 'superadmin']);
+      allow update: if isSuperAdmin() || (isSameUser(userId) && isRoleAndSectorUnchanged());
+      allow delete: if isSuperAdmin();
+    }
+
+    match /admin_profiles/{profileId} {
+      allow read: if isSignedIn();
+      allow create: if isSuperAdmin() || isSameUser(profileId);
+      allow update: if isSuperAdmin() || (isSameUser(profileId) && isRoleAndSectorUnchanged());
+      allow delete: if isSuperAdmin();
+    }
+
+    match /media_metadata/{mediaId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    match /revisions/{revisionId} {
+      allow read, write: if isEditor();
+    }
+
+    match /trash_bin/{trashId} {
+      allow read, create, update: if isEditor();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /audit_events/{eventId} {
+      allow create, read: if isSignedIn();
+      allow update, delete: if false; // Append-only audit logs
+    }
+
+    match /audit_logs/{logId} {
+      allow create, read: if isSignedIn();
+      allow update, delete: if false; // Append-only audit logs
+    }
+  }
+}

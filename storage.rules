@@ -1,0 +1,47 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMaxFileSize(maxSizeBytes) {
+      return request.resource.size <= maxSizeBytes;
+    }
+
+    function isPermittedImageType() {
+      return request.resource.contentType.matches('image/(jpeg|png|webp|svg\\+xml|gif)');
+    }
+
+    function isPermittedDocType() {
+      return request.resource.contentType.matches('application/(pdf|vnd.openxmlformats-officedocument.wordprocessingml.document)');
+    }
+
+    // 1. PUBLIC PUBLISHED MEDIA
+    match /public/{sector}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && isMaxFileSize(15 * 1024 * 1024) && (isPermittedImageType() || isPermittedDocType());
+    }
+
+    // 2. CMS MANAGED ASSETS
+    match /cms_assets/{sector}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && isMaxFileSize(15 * 1024 * 1024) && (isPermittedImageType() || isPermittedDocType());
+    }
+
+    // 3. PRIVATE CUSTOMER ATTACHMENTS (DOCUMENTS & BROCHURES)
+    match /private_attachments/{leadId}/{allPaths=**} {
+      // Anonymous visitors CANNOT read, list, or download private customer attachments
+      allow read: if isSignedIn();
+      allow create: if isMaxFileSize(10 * 1024 * 1024) && (isPermittedImageType() || isPermittedDocType());
+      allow update, delete: if isSignedIn();
+    }
+
+    // Deny by default for all other unmapped storage paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
