@@ -191,6 +191,8 @@ export function ValuationWizard({ language, onSuccess, isModal = false }: Valuat
           timeline,
           preferredContact,
           estimatedValueSAR: calculatedEstimate.minSar,
+          estimatedValueMaxSAR: calculatedEstimate.maxSar,
+          expectedPrice: expectedPrice || undefined,
         },
       });
 

@@ -108,6 +108,8 @@ export function QuoteModal() {
           calculatorVersion: quoteModalInitialData?.calculatorVersion,
           inputSnapshot: quoteModalInitialData?.inputSnapshot,
           calculationSnapshot: quoteModalInitialData?.calculationSnapshot,
+          estimatedValueSAR: quoteModalInitialData?.estimatedValueSAR,
+          inquiredProjectId: quoteModalInitialData?.inquiredProjectId,
         },
       });
 

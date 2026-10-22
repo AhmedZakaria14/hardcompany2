@@ -224,10 +224,14 @@ export async function uploadCmsFile(
 
     return downloadUrl;
   } catch (error: any) {
-    console.warn('Storage upload error, using fallback Data URL:', error);
-    return new Promise((resolve) => {
+    console.warn('Storage upload error, evaluating fallback Data URL:', error);
+    if (file.size > 700 * 1024) {
+      throw new Error(`Cloud Storage upload failed and file (${(file.size / 1024 / 1024).toFixed(1)}MB) exceeds 700KB Base64 limit.`);
+    }
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = (err) => reject(err);
       reader.readAsDataURL(file);
     });
   }

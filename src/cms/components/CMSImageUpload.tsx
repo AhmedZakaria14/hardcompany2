@@ -60,7 +60,15 @@ export const CMSImageUpload: React.FC<SingleImageUploadProps> = ({
     try {
       const downloadUrl = await uploadCmsFile(file, 'property_cms');
       onChange(downloadUrl);
-    } catch {
+    } catch (err: any) {
+      if (file.size > 700 * 1024) {
+        setError(
+          isAr
+            ? `فشل رفع الصورة إلى وحدة التخزين وحجم الملف (${(file.size / (1024 * 1024)).toFixed(1)} ميجابايت) يتجاوز الحد الأقصى للنقل المباشر.`
+            : `Upload failed and file (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds maximum fallback size.`
+        );
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (event) => {
         const result = event.target?.result as string;
@@ -384,7 +392,7 @@ export const CMSMultiImageGallery: React.FC<MultiImageGalleryProps> = ({
     }
   };
 
-  const processFiles = (files: File[]) => {
+  const processFiles = async (files: File[]) => {
     const imageFiles = files.filter((f) => f.type.startsWith('image/'));
     if (imageFiles.length === 0) {
       setError(isAr ? 'يرجى اختيار ملفات صور صالحة' : 'Please select valid image files');
@@ -392,23 +400,34 @@ export const CMSMultiImageGallery: React.FC<MultiImageGalleryProps> = ({
     }
 
     setError(null);
-    const newImagesList: string[] = [];
-    let processedCount = 0;
+    const uploadedUrls: string[] = [];
 
-    imageFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const res = event.target?.result as string;
-        if (res) {
-          newImagesList.push(res);
+    for (const file of imageFiles) {
+      try {
+        const url = await uploadCmsFile(file, 'gallery_cms');
+        uploadedUrls.push(url);
+      } catch (e) {
+        if (file.size <= 700 * 1024) {
+          try {
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = (evt) => resolve(evt.target?.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+            uploadedUrls.push(dataUrl);
+          } catch {
+            // Skip unreadable file
+          }
         }
-        processedCount++;
-        if (processedCount === imageFiles.length) {
-          onChange([...images, ...newImagesList]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      onChange([...images, ...uploadedUrls]);
+    } else {
+      setError(isAr ? 'تعذر رفع الصور المحددة.' : 'Failed to upload selected images.');
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {

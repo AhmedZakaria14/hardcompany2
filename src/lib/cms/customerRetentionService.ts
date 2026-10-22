@@ -215,6 +215,18 @@ export async function deleteCustomerRequestAndAttachments(
     const leadRef = doc(db, 'leads', lead.id);
     await deleteDoc(leadRef);
 
+    // Delete from sector collections if mirrored
+    try {
+      await deleteDoc(doc(db, 'construction_leads', lead.id));
+    } catch (e) {
+      // non-blocking
+    }
+    try {
+      await deleteDoc(doc(db, 'hvac_leads', lead.id));
+    } catch (e) {
+      // non-blocking
+    }
+
     // 2. Log PII-Sanitized Audit Entry (Retains ONLY trackingCode and leadId, NO full names, phone numbers, or email addresses)
     await addDoc(collection(db, 'audit_logs'), {
       action: 'customer_request_permanently_deleted',

@@ -55,6 +55,8 @@ export interface FormSubmissionResult {
   leadId: string;
   trackingCode: string;
   isDuplicate?: boolean;
+  dbSynced?: boolean;
+  isOfflineQueued?: boolean;
   message?: string;
 }
 
@@ -365,6 +367,55 @@ export async function submitCustomerForm(
     // Synchronous database write with automatic retry (3 attempts)
     await retryOperation(() => setDoc(docRef, firestoreLeadPayload), 3, 600);
 
+    // Mirror submission to sector collections for Construction and HVAC CMS visibility
+    if (payload.sector === 'construction' || payload.formType === 'construction_quote' || payload.formType === 'project_inquiry') {
+      try {
+        const cstRef = doc(db, 'construction_leads', leadId);
+        await setDoc(cstRef, {
+          id: leadId,
+          referenceNumber: trackingCode,
+          clientName: payload.name.trim(),
+          phoneNumber: payload.phone ? payload.phone.trim() : '',
+          email: payload.email.trim().toLowerCase(),
+          city: payload.details?.city || 'الرياض',
+          district: payload.details?.district || '',
+          projectType: payload.details?.projectType || 'villa',
+          builtUpArea: payload.details?.builtUpArea || null,
+          budgetRangeSAR: payload.details?.budgetRangeSAR || '',
+          estimatedValueSAR: payload.details?.estimatedValueSAR || null,
+          status: 'new',
+          notes: payload.message?.trim() || '',
+          createdAt: new Date().toISOString(),
+          submittedAt: serverTimestamp(),
+        });
+      } catch (cstErr) {
+        console.warn('Construction leads mirror notice:', cstErr);
+      }
+    } else if (payload.sector === 'hvac' || payload.formType === 'hvac_service') {
+      try {
+        const hvacRef = doc(db, 'hvac_leads', leadId);
+        await setDoc(hvacRef, {
+          id: leadId,
+          referenceNumber: trackingCode,
+          clientName: payload.name.trim(),
+          phoneNumber: payload.phone ? payload.phone.trim() : '',
+          email: payload.email.trim().toLowerCase(),
+          city: payload.details?.city || 'الخبر',
+          service: payload.details?.service || 'صيانة تكييف',
+          preferredDate: payload.details?.preferredDate || '',
+          areaSqM: payload.details?.areaSqM || null,
+          isUrgent: Boolean(payload.details?.isUrgent),
+          status: 'new',
+          notes: payload.message?.trim() || '',
+          source: 'hvac',
+          createdAt: new Date().toISOString(),
+          submittedAt: serverTimestamp(),
+        });
+      } catch (hvacErr) {
+        console.warn('HVAC leads mirror notice:', hvacErr);
+      }
+    }
+
     // Independently process server-side notifications (non-blocking)
     processLeadNotification(leadId, { ...payload, trackingCode }).catch((notifErr) => {
       console.warn('Non-blocking notification processing error:', notifErr);
@@ -439,6 +490,8 @@ export async function submitCustomerForm(
       leadId,
       trackingCode,
       isDuplicate: false,
+      dbSynced: true,
+      isOfflineQueued: false,
       message: isAr
         ? 'تم استلام طلبك وحفظه في قاعدة البيانات بنجاح، وتم تحويله إلى الفريق المختص.'
         : 'Your request has been successfully saved in the database and dispatched to our team.',
@@ -459,6 +512,8 @@ export async function submitCustomerForm(
         leadId: verification.leadData.id,
         trackingCode: verification.leadData.trackingCode,
         isDuplicate: true,
+        dbSynced: true,
+        isOfflineQueued: false,
         message: isAr
           ? 'تم استلام طلبك وحفظه في قاعدة البيانات بنجاح.'
           : 'Your request was successfully saved in the database.',
@@ -494,13 +549,15 @@ export async function submitCustomerForm(
     }).catch(() => {});
 
     return {
-      success: true,
+      success: false,
       leadId,
       trackingCode,
       isDuplicate: false,
+      dbSynced: false,
+      isOfflineQueued: true,
       message: isAr
-        ? 'تم حفظ طلبك محلياً وسيتم مزامنته مع قاعدة البيانات فور عودة الاتصال.'
-        : 'Your request was saved locally and will sync with the database upon connection restoration.',
+        ? 'تم حفظ طلبك محلياً في طابور المزامنك الموقّت وسيتم إرساله لقواعد البيانات تلقائياً عند عودة الاتصال.'
+        : 'Your request was saved locally in the temporary queue and will automatically sync with the database upon connection restoration.',
     };
   }
 }

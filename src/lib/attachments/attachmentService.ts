@@ -154,7 +154,14 @@ export async function uploadFormAttachment(
       meta: { fileName: file.name, fileSizeBytes: file.size, mimeType: file.type },
     }).catch(() => {});
 
-    // If Firebase Storage bucket isn't provisioned or restricted, encode base64
+    // If Firebase Storage bucket isn't provisioned or restricted, encode base64 for small files only
+    if (file.size > 700 * 1024) {
+      throw new Error(
+        isAr
+          ? `تعذر رفع الملف إلى وحدة التخزين السحابية (حجم الملف ${(file.size / (1024 * 1024)).toFixed(1)} ميجابايت). يرجى التأكد من اختيار ملف أقل من 700 كيلوبايت أو المتابعة بدون مرفق.`
+          : `Failed to upload file to Cloud Storage (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum fallback attachment size is 700KB.`
+      );
+    }
     base64Fallback = await fileToBase64(file);
   }
 

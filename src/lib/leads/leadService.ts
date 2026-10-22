@@ -111,13 +111,24 @@ export function subscribeToLeads(
   onError: (err: any) => void
 ): () => void {
   const path = 'leads';
-  const leadsQuery = query(collection(db, path), orderBy('createdAt', 'desc'));
+  const colRef = collection(db, path);
 
   return onSnapshot(
-    leadsQuery,
+    colRef,
     (snapshot) => {
       const items: FirestoreLead[] = snapshot.docs.map((d) => {
         const data = d.data();
+
+        let createdIso = new Date().toISOString();
+        if (data.createdAt) {
+          createdIso =
+            typeof data.createdAt === 'string'
+              ? data.createdAt
+              : data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString();
+        } else if (data.submittedAt) {
+          createdIso = data.submittedAt?.toDate?.()?.toISOString() || new Date().toISOString();
+        }
+
         return {
           id: d.id,
           trackingCode: data.trackingCode || `HARD-${d.id.substring(0, 5)}`,
@@ -144,10 +155,19 @@ export function subscribeToLeads(
           crmSynced: Boolean(data.crmSynced),
           crmReferenceId: data.crmReferenceId || '',
           crmSystem: data.crmSystem || '',
-          createdAt: data.createdAt || new Date().toISOString(),
+          notificationStatus: data.notificationStatus || 'delivered',
+          notificationProvider: data.notificationProvider || '',
+          attachments: Array.isArray(data.attachments) ? data.attachments : [],
+          notificationLastAttemptAt: data.notificationLastAttemptAt || '',
+          notificationError: data.notificationError || '',
+          createdAt: createdIso,
           updatedAt: data.updatedAt || '',
         } as FirestoreLead;
       });
+
+      // Sort client-side by createdAt descending to guarantee no docs are dropped due to missing order fields
+      items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
       onData(items);
     },
     (error) => {
@@ -190,6 +210,27 @@ export async function updateLeadStatus(
       statusHistory: updatedHistory,
       updatedAt: nowIso,
     });
+
+    // Mirror status update to sector-specific collections if present
+    if (currentLead.sector === 'construction') {
+      try {
+        await updateDoc(doc(db, 'construction_leads', leadId), {
+          status: newStatus,
+          updatedAt: nowIso,
+        });
+      } catch (e) {
+        // non-blocking
+      }
+    } else if (currentLead.sector === 'hvac') {
+      try {
+        await updateDoc(doc(db, 'hvac_leads', leadId), {
+          status: newStatus,
+          updatedAt: nowIso,
+        });
+      } catch (e) {
+        // non-blocking
+      }
+    }
 
     return true;
   } catch (error) {

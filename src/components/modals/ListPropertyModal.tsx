@@ -45,10 +45,12 @@ export function ListPropertyModal({
   const [mapAddress, setMapAddress] = useState('');
   const [shortAddress, setShortAddress] = useState('');
   const [ownerOfferType, setOwnerOfferType] = useState<ListingOfferType>('sale');
+  const [askingPriceSAR, setAskingPriceSAR] = useState('');
 
   // Seeker Specific Fields
   const [propertyDescription, setPropertyDescription] = useState('');
   const [seekerOfferType, setSeekerOfferType] = useState<RequestOfferType>('buy');
+  const [budgetSAR, setBudgetSAR] = useState('');
 
   // Shared Fields (Preserved across role switching)
   const [propertyType, setPropertyType] = useState('');
@@ -134,13 +136,13 @@ export function ListPropertyModal({
       intentLabel = isAr ? `مالك - عرض عقار للـ${offerLabel}` : `Owner - Listing for ${offerLabel}`;
       const addressValue = addressMethod === 'map' ? mapAddress : shortAddress;
 
-      messagePayload = `[Property Listing Submission - Owner Intent]\nRole: Property Owner\nListing Type: ${offerLabel}\nProperty Type: ${propTypeLabel}\nAddress Method: ${addressMethod}\nAddress/Coordinates: ${addressValue || 'Not specified'}`;
+      messagePayload = `[Property Listing Submission - Owner Intent]\nRole: Property Owner\nListing Type: ${offerLabel}\nProperty Type: ${propTypeLabel}\nAsking Price (SAR): ${askingPriceSAR || 'Unspecified'}\nAddress Method: ${addressMethod}\nAddress/Coordinates: ${addressValue || 'Not specified'}`;
     } else {
       inquiryTypeLead = 'property_inquiry';
       const requestLabel = seekerOfferType === 'buy' ? (isAr ? 'شراء' : 'Purchase') : (isAr ? 'إيجار' : 'Rent');
       intentLabel = isAr ? `مشتري/مستأجر - طلب ${requestLabel}` : `Buyer/Tenant - Search for ${requestLabel}`;
 
-      messagePayload = `[Property Search Request - Buyer/Tenant Intent]\nRole: Buyer / Tenant\nRequest Type: ${requestLabel}\nProperty Type: ${propTypeLabel}\nRequirements & Notes: ${propertyDescription || 'None'}`;
+      messagePayload = `[Property Search Request - Buyer/Tenant Intent]\nRole: Buyer / Tenant\nRequest Type: ${requestLabel}\nProperty Type: ${propTypeLabel}\nBudget (SAR): ${budgetSAR || 'Unspecified'}\nRequirements & Notes: ${propertyDescription || 'None'}`;
     }
 
     try {
@@ -163,6 +165,8 @@ export function ListPropertyModal({
           propertyDescription: userRole === 'seeker' ? propertyDescription : '',
           ownerOfferType: userRole === 'owner' ? ownerOfferType : undefined,
           seekerOfferType: userRole === 'seeker' ? seekerOfferType : undefined,
+          askingPriceSAR: userRole === 'owner' ? askingPriceSAR : undefined,
+          budgetSAR: userRole === 'seeker' ? budgetSAR : undefined,
         },
       });
 
@@ -572,6 +576,21 @@ export function ListPropertyModal({
                     </div>
                   </div>
                 </div>
+
+                {/* Asking Price Input for Owner */}
+                <div>
+                  <label htmlFor="list-property-asking-price" className="block text-xs font-bold text-slate-800 mb-1 text-start">
+                    {isAr ? 'السعر المستهدف أو المطلوب (بالريال السعودي SAR)' : 'Asking / Target Price (SAR)'}
+                  </label>
+                  <input
+                    id="list-property-asking-price"
+                    type="text"
+                    value={askingPriceSAR}
+                    onChange={(e) => setAskingPriceSAR(e.target.value)}
+                    placeholder={isAr ? 'مثال: ٢,٥٠٠,٠٠٠ ريال' : 'e.g., 2,500,000 SAR'}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-medium text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-start"
+                  />
+                </div>
               </div>
             )}
 
@@ -611,8 +630,8 @@ export function ListPropertyModal({
                   />
                 </div>
 
-                {/* 2. Property Type & Request Type (Buy vs Rent) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* 2. Property Type, Request Type & Budget Input for Seeker */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label htmlFor="list-property-type-seeker" className="block text-xs font-bold text-slate-800 mb-1 text-start">
                       {isAr ? 'نوع العقار المطلوب' : 'Property Type'} *
@@ -668,6 +687,20 @@ export function ListPropertyModal({
                         </span>
                       </label>
                     </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="list-property-budget" className="block text-xs font-bold text-slate-800 mb-1 text-start">
+                      {isAr ? 'الميزانية المستهدفة (SAR)' : 'Target Budget (SAR)'}
+                    </label>
+                    <input
+                      id="list-property-budget"
+                      type="text"
+                      value={budgetSAR}
+                      onChange={(e) => setBudgetSAR(e.target.value)}
+                      placeholder={isAr ? 'مثال: ٢ - ٣ مليون ريال' : 'e.g., 2M - 3M SAR'}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-medium text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-start"
+                    />
                   </div>
                 </div>
               </div>
