@@ -5,6 +5,7 @@ import { Language, Project } from '../../types';
 import { translations } from '../../lib/translations';
 import { CheckCircle2, FileText, Send, Sparkles } from 'lucide-react';
 import { submitCustomerForm, FormValidationError } from '../../lib/forms/formSubmissionService';
+import { getLocalizedText } from '../../lib/utils';
 
 interface RequestBrochureModalProps {
   isOpen: boolean;
@@ -46,9 +47,9 @@ export function RequestBrochureModal({
         email: email.trim(),
         phone: phone.trim(),
         entityId: project.id,
-        entityTitle: project.title[language] || project.title.en,
+        entityTitle: getLocalizedText(project.title, language),
         language,
-        message: `Project Brochure Request for: ${project.title[language]} (${project.id})`,
+        message: `Project Brochure Request for: ${getLocalizedText(project.title, language)} (${project.id})`,
         details: {
           requestType: 'brochure',
           projectId: project.id,
@@ -92,8 +93,8 @@ export function RequestBrochureModal({
       title={language === 'en' ? 'Request Project Brochure' : 'طلب الكتيب التعريفي للمشروع'}
       subtitle={
         language === 'en'
-          ? `Receive complete layout plans, pricing sheets, and ROI breakdown for ${project.title[language]}`
-          : `احصل على الكتيب التفصيلي ومخططات الوحدات وجداول الأسعار لمشروع ${project.title[language]}`
+          ? `Receive complete layout plans, pricing sheets, and ROI breakdown for ${getLocalizedText(project.title, language)}`
+          : `احصل على الكتيب التفصيلي ومخططات الوحدات وجداول الأسعار لمشروع ${getLocalizedText(project.title, language)}`
       }
       maxWidth="md"
     >
@@ -111,13 +112,13 @@ export function RequestBrochureModal({
             {language === 'en' ? (
               <>
                 We have registered your request and sent the full investment brochure for{' '}
-                <strong className="text-slate-900">{project.title[language]}</strong> to{' '}
+                <strong className="text-slate-900">{getLocalizedText(project.title, language)}</strong> to{' '}
                 <strong className="text-blue-700 font-mono">{confirmedEmail}</strong>.
               </>
             ) : (
               <>
                 تم تسجيل طلبك وإرسال الكتيب التعريفي الشامل لمشروع{' '}
-                <strong className="text-slate-900">{project.title[language]}</strong> إلى البريد الإلكتروني{' '}
+                <strong className="text-slate-900">{getLocalizedText(project.title, language)}</strong> إلى البريد الإلكتروني{' '}
                 <strong className="text-blue-700 font-mono">{confirmedEmail}</strong>.
               </>
             )}
@@ -147,8 +148,8 @@ export function RequestBrochureModal({
               <FileText className="w-5 h-5" />
             </div>
             <div className="min-w-0 text-start">
-              <h5 className="text-xs font-bold text-slate-900 truncate">{project.title[language]}</h5>
-              <p className="text-[11px] text-slate-500">{project.developer[language]}</p>
+              <h5 className="text-xs font-bold text-slate-900 truncate">{getLocalizedText(project.title, language)}</h5>
+              <p className="text-[11px] text-slate-500">{getLocalizedText(project.developer, language)}</p>
             </div>
           </div>
 

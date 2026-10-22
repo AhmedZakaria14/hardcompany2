@@ -19,6 +19,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { submitCustomerForm, FormValidationError } from '../../lib/forms/formSubmissionService';
+import { getLocalizedText } from '../../lib/utils';
 
 interface ProjectInquiryModalProps {
   isOpen: boolean;
@@ -84,15 +85,15 @@ export function ProjectInquiryModal({
         email: email.trim(),
         phone: phone.trim(),
         entityId: project.id,
-        entityTitle: project.title[language] || project.title.en,
+        entityTitle: getLocalizedText(project.title, language),
         language,
-        message: `[Project Unit Request]\nProject: ${project.title[language]} (ID: ${project.id})\nDeveloper: ${project.developer[language]}\nInquiry Type: ${inquiryType}\nStarting Price: ${project.startingPriceSAR}\nHandover: ${project.handoverDate[language]}\nAvailable Units: ${project.unitsAvailable}/${project.unitsTotal}\n\nClient Note:\n${message || 'No additional note provided.'}`,
+        message: `[Project Unit Request]\nProject: ${getLocalizedText(project.title, language)} (ID: ${project.id})\nDeveloper: ${getLocalizedText(project.developer, language)}\nInquiry Type: ${inquiryType}\nStarting Price: ${project.startingPriceSAR}\nHandover: ${getLocalizedText(project.handoverDate, language)}\nAvailable Units: ${project.unitsAvailable}/${project.unitsTotal}\n\nClient Note:\n${message || 'No additional note provided.'}`,
         details: {
           projectId: project.id,
-          projectTitleEn: project.title.en,
-          projectTitleAr: project.title.ar,
-          developerEn: project.developer.en,
-          developerAr: project.developer.ar,
+          projectTitleEn: getLocalizedText(project.title, 'en'),
+          projectTitleAr: getLocalizedText(project.title, 'ar'),
+          developerEn: getLocalizedText(project.developer, 'en'),
+          developerAr: getLocalizedText(project.developer, 'ar'),
           startingPriceSAR: project.startingPriceSAR,
           unitsAvailable: project.unitsAvailable,
           unitsTotal: project.unitsTotal,
@@ -135,8 +136,8 @@ export function ProjectInquiryModal({
       }
       subtitle={
         language === 'en'
-          ? `Specific Project Inquiry for ${project.title[language]}`
-          : `طلب تخصيص رسمي لمشروع ${project.title[language]}`
+          ? `Specific Project Inquiry for ${getLocalizedText(project.title, language)}`
+          : `طلب تخصيص رسمي لمشروع ${getLocalizedText(project.title, language)}`
       }
       maxWidth="lg"
     >
@@ -154,8 +155,8 @@ export function ProjectInquiryModal({
             </div>
             <p className="text-xs text-emerald-800 leading-relaxed">
               {language === 'en'
-                ? `Your unit request for ${project.title[language]} has been registered and routed to the primary project management desk.`
-                : `تم تسجيل طلبك الخاص بمشروع ${project.title[language]} وتوجيهه مباشرة إلى مكتب إدارة وتطوير المشروع.`}
+                ? `Your unit request for ${getLocalizedText(project.title, language)} has been registered and routed to the primary project management desk.`
+                : `تم تسجيل طلبك الخاص بمشروع ${getLocalizedText(project.title, language)} وتوجيهه مباشرة إلى مكتب إدارة وتطوير المشروع.`}
             </p>
           </div>
 
@@ -173,11 +174,11 @@ export function ProjectInquiryModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-700">
               <div>
                 <span className="text-slate-400 block">{language === 'en' ? 'Project Name:' : 'اسم المشروع:'}</span>
-                <strong className="text-slate-900">{project.title[language]}</strong>
+                <strong className="text-slate-900">{getLocalizedText(project.title, language)}</strong>
               </div>
               <div>
                 <span className="text-slate-400 block">{language === 'en' ? 'Developer:' : 'المطور العقاري:'}</span>
-                <strong className="text-slate-900">{project.developer[language]}</strong>
+                <strong className="text-slate-900">{getLocalizedText(project.developer, language)}</strong>
               </div>
               <div>
                 <span className="text-slate-400 block">{language === 'en' ? 'Starting Price:' : 'سعر البداية:'}</span>
@@ -233,21 +234,21 @@ export function ProjectInquiryModal({
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-400/30 px-2 py-0.5 rounded-md">
-                    {project.category[language]}
+                    {getLocalizedText(project.category, language)}
                   </span>
                   <span className="text-[11px] text-slate-300 font-mono">ID: {project.id}</span>
                 </div>
                 <h4 className="text-base sm:text-lg font-bold font-display-serif text-white">
-                  {project.title[language]}
+                  {getLocalizedText(project.title, language)}
                 </h4>
                 <div className="flex items-center gap-3 text-xs text-slate-300">
                   <span className="flex items-center gap-1">
                     <Building2 className="w-3.5 h-3.5 text-blue-400" />
-                    {project.developer[language]}
+                    {getLocalizedText(project.developer, language)}
                   </span>
                   <span className="flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5 text-blue-400" />
-                    {project.location[language]}
+                    {getLocalizedText(project.location, language)}
                   </span>
                 </div>
               </div>

@@ -29,6 +29,7 @@ import {
   Inbox,
 } from 'lucide-react';
 import { Language } from '../../types';
+import { getLocalizedText } from '../../lib/utils';
 import { PublisherUser } from '../../lib/cms/publicationTypes';
 import { TrashItem, TrashEntityType } from '../../lib/cms/archivalTypes';
 import {
@@ -95,7 +96,7 @@ export const CMSTrashBinModal: React.FC<CMSTrashBinModalProps> = ({
 
     try {
       await restoreFromTrash(item.id, currentUser.email);
-      const titleStr = typeof item.title === 'object' ? (isAr ? item.title.ar : item.title.en) : item.title;
+      const titleStr = getLocalizedText(item.title, isAr ? 'ar' : 'en') || 'Item';
       
       const msg = isAr
         ? `تم استرجاع "${titleStr}" بنجاح إلى مسودات إدارة المحتوى (Drafts).`
@@ -138,9 +139,7 @@ export const CMSTrashBinModal: React.FC<CMSTrashBinModalProps> = ({
     try {
       await permanentlyDeleteFromTrash(itemToPermanentDelete.id, currentUser);
       
-      const titleStr = typeof itemToPermanentDelete.title === 'object'
-        ? (isAr ? itemToPermanentDelete.title.ar : itemToPermanentDelete.title.en)
-        : itemToPermanentDelete.title;
+      const titleStr = getLocalizedText(itemToPermanentDelete.title, isAr ? 'ar' : 'en') || 'Item';
 
       setActionMessage({
         type: 'success',
@@ -195,7 +194,7 @@ export const CMSTrashBinModal: React.FC<CMSTrashBinModalProps> = ({
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const titleStr = typeof item.title === 'object' ? `${item.title.ar} ${item.title.en}` : item.title;
+      const titleStr = `${getLocalizedText(item.title, 'ar')} ${getLocalizedText(item.title, 'en')}`;
       return (
         titleStr.toLowerCase().includes(q) ||
         item.entityId.toLowerCase().includes(q) ||
@@ -361,7 +360,7 @@ export const CMSTrashBinModal: React.FC<CMSTrashBinModalProps> = ({
             filteredItems.map((item) => {
               const remainingDays = getRemainingDays(item.retentionExpiresAt);
               const isExpired = remainingDays <= 0;
-              const titleText = typeof item.title === 'object' ? (isAr ? item.title.ar : item.title.en) : item.title;
+              const titleText = getLocalizedText(item.title, isAr ? 'ar' : 'en') || 'Item';
 
               return (
                 <div

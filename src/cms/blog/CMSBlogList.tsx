@@ -21,6 +21,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { Language, BlogPost, BlogStatus } from '../../types';
+import { getLocalizedText } from '../../lib/utils';
 
 interface CMSBlogListProps {
   blogPosts: BlogPost[];
@@ -71,16 +72,23 @@ export const CMSBlogList: React.FC<CMSBlogListProps> = ({
   const filteredPosts = useMemo(() => {
     return blogPosts.filter((post) => {
       const q = searchQuery.toLowerCase().trim();
+      const titleEn = getLocalizedText(post.title, 'en').toLowerCase();
+      const titleAr = getLocalizedText(post.title, 'ar').toLowerCase();
+      const authorEn = getLocalizedText(post.author, 'en').toLowerCase();
+      const authorAr = getLocalizedText(post.author, 'ar').toLowerCase();
+      const excerptEn = getLocalizedText(post.excerpt, 'en').toLowerCase();
+      const excerptAr = getLocalizedText(post.excerpt, 'ar').toLowerCase();
+
       const matchesSearch =
         !q ||
-        post.title.en.toLowerCase().includes(q) ||
-        post.title.ar.toLowerCase().includes(q) ||
-        post.author.en.toLowerCase().includes(q) ||
-        post.author.ar.toLowerCase().includes(q) ||
-        post.excerpt.en.toLowerCase().includes(q) ||
-        post.excerpt.ar.toLowerCase().includes(q);
+        titleEn.includes(q) ||
+        titleAr.includes(q) ||
+        authorEn.includes(q) ||
+        authorAr.includes(q) ||
+        excerptEn.includes(q) ||
+        excerptAr.includes(q);
 
-      const matchesCat = categoryFilter === 'all' || post.category?.en === categoryFilter;
+      const matchesCat = categoryFilter === 'all' || getLocalizedText(post.category, 'en') === categoryFilter;
       const matchesStatus = statusFilter === 'all' || (post.status || 'published') === statusFilter;
 
       return matchesSearch && matchesCat && matchesStatus;
@@ -92,12 +100,12 @@ export const CMSBlogList: React.FC<CMSBlogListProps> = ({
     const headers = ['ID', 'Title_EN', 'Title_AR', 'Category', 'Author', 'Date', 'ReadTime', 'Status'];
     const rows = filteredPosts.map((p) => [
       p.id,
-      `"${p.title.en.replace(/"/g, '""')}"`,
-      `"${p.title.ar.replace(/"/g, '""')}"`,
-      `"${p.category.en.replace(/"/g, '""')}"`,
-      `"${p.author.en.replace(/"/g, '""')}"`,
+      `"${getLocalizedText(p.title, 'en').replace(/"/g, '""')}"`,
+      `"${getLocalizedText(p.title, 'ar').replace(/"/g, '""')}"`,
+      `"${getLocalizedText(p.category, 'en').replace(/"/g, '""')}"`,
+      `"${getLocalizedText(p.author, 'en').replace(/"/g, '""')}"`,
       `"${p.date}"`,
-      `"${p.readTime.en}"`,
+      `"${getLocalizedText(p.readTime, 'en')}"`,
       p.status || 'published',
     ]);
     const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
@@ -321,13 +329,13 @@ export const CMSBlogList: React.FC<CMSBlogListProps> = ({
                         <div className="flex items-center gap-3">
                           <img
                             src={post.image}
-                            alt={post.title[language]}
+                            alt={getLocalizedText(post.title, language)}
                             className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0"
                           />
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                               <span className="font-bold text-slate-900 text-xs truncate max-w-sm block">
-                                {post.title[language]}
+                                {getLocalizedText(post.title, language)}
                               </span>
                               {post.featured && (
                                 <span className="p-0.5 rounded bg-amber-100 text-amber-700" title="Featured">
@@ -336,7 +344,7 @@ export const CMSBlogList: React.FC<CMSBlogListProps> = ({
                               )}
                             </div>
                             <span className="text-[10px] text-slate-500 truncate max-w-sm block">
-                              {post.excerpt[language]}
+                              {getLocalizedText(post.excerpt, language)}
                             </span>
                           </div>
                         </div>
@@ -345,7 +353,7 @@ export const CMSBlogList: React.FC<CMSBlogListProps> = ({
                       {/* Category */}
                       <td className="py-3.5 px-4">
                         <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-semibold text-[10px]">
-                          {post.category[language]}
+                          {getLocalizedText(post.category, language)}
                         </span>
                       </td>
 
@@ -353,7 +361,7 @@ export const CMSBlogList: React.FC<CMSBlogListProps> = ({
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-1.5 text-slate-800">
                           <User className="w-3.5 h-3.5 text-slate-400" />
-                          <span className="font-semibold text-xs">{post.author[language]}</span>
+                          <span className="font-semibold text-xs">{getLocalizedText(post.author, language)}</span>
                         </div>
                       </td>
 
@@ -366,7 +374,7 @@ export const CMSBlogList: React.FC<CMSBlogListProps> = ({
                       <td className="py-3.5 px-4 text-slate-500 text-[11px]">
                         <div className="flex items-center gap-1">
                           <Clock className="w-3 h-3 text-slate-400" />
-                          <span>{post.readTime[language]}</span>
+                          <span>{getLocalizedText(post.readTime, language)}</span>
                         </div>
                       </td>
 
@@ -469,7 +477,7 @@ export const CMSBlogList: React.FC<CMSBlogListProps> = ({
                   <div className="relative aspect-16/10 bg-slate-900 overflow-hidden">
                     <img
                       src={post.image}
-                      alt={post.title[language]}
+                      alt={getLocalizedText(post.title, language)}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute top-3 start-3">
@@ -488,26 +496,26 @@ export const CMSBlogList: React.FC<CMSBlogListProps> = ({
                   {/* Body */}
                   <div className="p-4 space-y-2.5">
                     <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                      <span className="text-blue-600 font-bold uppercase">{post.category[language]}</span>
+                      <span className="text-blue-600 font-bold uppercase">{getLocalizedText(post.category, language)}</span>
                       <span>•</span>
                       <span>{post.date}</span>
                     </div>
 
                     <h3 className="font-bold text-slate-900 text-sm font-display-serif line-clamp-2">
-                      {post.title[language]}
+                      {getLocalizedText(post.title, language)}
                     </h3>
                     <p className="text-xs text-slate-500 line-clamp-2">
-                      {post.excerpt[language]}
+                      {getLocalizedText(post.excerpt, language)}
                     </p>
 
                     <div className="pt-2 flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-100">
                       <div className="flex items-center gap-1.5">
                         <User className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="font-semibold text-slate-700">{post.author[language]}</span>
+                        <span className="font-semibold text-slate-700">{getLocalizedText(post.author, language)}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="w-3 h-3 text-slate-400" />
-                        <span>{post.readTime[language]}</span>
+                        <span>{getLocalizedText(post.readTime, language)}</span>
                       </div>
                     </div>
                   </div>

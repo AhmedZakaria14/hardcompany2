@@ -18,6 +18,7 @@ import {
   Users,
 } from 'lucide-react';
 import { Language } from '../../types';
+import { getLocalizedText } from '../../lib/utils';
 import { PublisherUser } from '../../lib/cms/publicationTypes';
 import { TrashEntityType, ReferenceCheckResult } from '../../lib/cms/archivalTypes';
 import { checkReferencesBeforeDelete, moveToTrash } from '../../lib/cms/archivalService';
@@ -184,7 +185,7 @@ export const PreDeleteReferenceModal: React.FC<PreDeleteReferenceModalProps> = (
                         <li key={idx} className="flex items-center gap-2 bg-slate-950/60 p-2 rounded-xl border border-slate-800">
                           <Layers className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                           <span className="truncate">
-                            {typeof ref.title === 'object' ? (isAr ? ref.title.ar : ref.title.en) : ref.title}
+                            {getLocalizedText(ref.title, isAr ? 'ar' : 'en') || 'Reference'}
                           </span>
                         </li>
                       ))}

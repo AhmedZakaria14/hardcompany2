@@ -262,9 +262,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     let unsubLeads: () => void = () => {};
     try {
       FirestoreLeadsRepository.getAll().then((dbLeads) => {
-        if (dbLeads && dbLeads.length > 0) {
-          setLeads(dbLeads);
-        }
+        setLeads(dbLeads || []);
       }).catch(() => {});
     } catch {
       // Ignore

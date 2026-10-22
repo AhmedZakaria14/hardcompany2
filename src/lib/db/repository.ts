@@ -1094,8 +1094,8 @@ export const JoinListRepository = {
    * Reset subscribers to default
    */
   resetToDefaults(): JoinListSubscriber[] {
-    saveStoredSubscribers(mockSubscribers);
-    return mockSubscribers;
+    saveStoredSubscribers([]);
+    return [];
   },
 };
 

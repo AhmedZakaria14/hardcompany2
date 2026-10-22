@@ -266,7 +266,27 @@ export function getStoredSeoConfigs(): Record<string, PageSeoConfig> {
     const raw = localStorage.getItem(SEO_STORAGE_KEY);
     if (!raw) return DEFAULT_SEO_CONFIGS;
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT_SEO_CONFIGS, ...parsed };
+    const merged: Record<string, PageSeoConfig> = { ...DEFAULT_SEO_CONFIGS };
+    if (parsed && typeof parsed === 'object') {
+      Object.keys(parsed).forEach((k) => {
+        const item = parsed[k];
+        if (item && typeof item === 'object') {
+          merged[k] = {
+            ...DEFAULT_SEO_CONFIGS[k],
+            ...item,
+            title: {
+              ar: item.title?.ar || DEFAULT_SEO_CONFIGS[k]?.title?.ar || 'مجموعة هارد',
+              en: item.title?.en || DEFAULT_SEO_CONFIGS[k]?.title?.en || 'HARD Group',
+            },
+            description: {
+              ar: item.description?.ar || DEFAULT_SEO_CONFIGS[k]?.description?.ar || '',
+              en: item.description?.en || DEFAULT_SEO_CONFIGS[k]?.description?.en || '',
+            },
+          };
+        }
+      });
+    }
+    return merged;
   } catch {
     return DEFAULT_SEO_CONFIGS;
   }
@@ -454,10 +474,18 @@ export function validateLegalPolicyCompleteness(policy: LegalPolicyContent): str
  */
 export function applyPageSeoToHead(config: PageSeoConfig, language: Language): void {
   if (typeof document === 'undefined') return;
+  if (!config) return;
 
   const isAr = language === 'ar';
-  const rawTitle = isAr ? config.title.ar : config.title.en;
-  const rawDesc = isAr ? config.description.ar : config.description.en;
+  const titleObj = (typeof config.title === 'object' && config.title !== null)
+    ? config.title
+    : (typeof config.title === 'string' ? { ar: config.title, en: config.title } : { ar: 'مجموعة هارد', en: 'HARD Group' });
+  const descObj = (typeof config.description === 'object' && config.description !== null)
+    ? config.description
+    : (typeof config.description === 'string' ? { ar: config.description, en: config.description } : { ar: '', en: '' });
+
+  const rawTitle = isAr ? (titleObj.ar || titleObj.en || 'مجموعة هارد') : (titleObj.en || titleObj.ar || 'HARD Group');
+  const rawDesc = isAr ? (descObj.ar || descObj.en || '') : (descObj.en || descObj.ar || '');
 
   const safeTitle = sanitizeSeoString(rawTitle);
   const safeDesc = sanitizeSeoString(rawDesc);

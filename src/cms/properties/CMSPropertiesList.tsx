@@ -42,8 +42,7 @@ interface CMSPropertiesListProps {
 
 const safePropTitle = (prop: Property, lang: 'ar' | 'en') => {
   if (!prop || !prop.title) return 'Un-titled Listing';
-  if (typeof prop.title === 'string') return prop.title;
-  return (lang === 'ar' ? prop.title.ar : prop.title.en) || prop.title.en || prop.title.ar || 'Un-titled Listing';
+  return getLocalizedText(prop.title, lang) || 'Un-titled Listing';
 };
 
 const safePropLocation = (prop: Property, lang: 'ar' | 'en') => {

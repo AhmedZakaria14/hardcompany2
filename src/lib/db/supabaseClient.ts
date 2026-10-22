@@ -201,15 +201,14 @@ export function getStoredSubscribers(): JoinListSubscriber[] {
     const data = localStorage.getItem(SUBSCRIBERS_STORAGE_KEY);
     if (data) {
       const parsed = JSON.parse(data);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
     }
   } catch (e) {
     console.error('Error reading subscribers from storage', e);
   }
-  saveStoredSubscribers(mockSubscribers);
-  return mockSubscribers;
+  return [];
 }
 
 export function saveStoredSubscribers(subscribers: JoinListSubscriber[]): void {
